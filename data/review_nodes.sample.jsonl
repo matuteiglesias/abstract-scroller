@@ -1,0 +1,3 @@
+{"version":"review_node.v1","node_id":"n1","title":"Aggregation Bias and Volatility","abstract":"We study aggregation...","date":"2025-08-10","year":2025,"venue":"NBER Working Paper","has_code":true,"doi":"10.1111/abc","tags":["macro"]}
+{"version":"review_node.v1","node_id":"n2","title":"Networks and Shocks","abstract":"A model of shocks...","date":"2025-07-22","year":2025,"venue":"CEPR DP","has_code":false,"arxiv_id":"arXiv:2507.12345","tags":["networks"]}
+{"version":"review_node.v1","node_id":"n3","title":"Heavy Tails in Retail","abstract":"Evidence of power laws...","date":"2024-11-05","year":2024,"venue":"BIS WP","has_code":1,"repec_id":"RePEc:bis:biswps:123"}
