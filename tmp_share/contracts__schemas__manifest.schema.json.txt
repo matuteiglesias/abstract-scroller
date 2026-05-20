@@ -1,0 +1,55 @@
+===== contracts/schemas/manifest.schema.json =====
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": "Snapshot Manifest",
+    "type": "object",
+    "required": ["snapshot_id","counts","order","tiles","bitsets","nodes"],
+    "properties": {
+      "snapshot_id": {"type":"string"},
+      "counts": {
+        "type":"object",
+        "required":["docs","tiles","tile_size"],
+        "properties": {
+          "docs":{"type":"integer","minimum":0},
+          "tiles":{"type":"integer","minimum":0},
+          "tile_size":{"type":"integer","enum":[1000]}
+        }
+      },
+      "order": {
+        "type":"object",
+        "required":["path","dtype","endianness","sha256"],
+        "properties":{
+          "path":{"type":"string"},
+          "dtype":{"type":"string","enum":["uint32"]},
+          "endianness":{"type":"string","enum":["little"]},
+          "sha256":{"type":"string"}
+        }
+      },
+      "tiles": {
+        "type":"object",
+        "required":["pattern","sha256_index"],
+        "properties":{
+          "pattern":{"type":"string"},
+          "sha256_index":{"type":"string"}
+        }
+      },
+      "bitsets": {
+        "type":"object",
+        "required":["dir","index"],
+        "properties":{
+          "dir":{"type":"string"},
+          "index":{"type":"string"}
+        }
+      },
+      "nodes": {
+        "type":"object",
+        "required":["tree","dir","schema_version"],
+        "properties":{
+          "tree":{"type":"string"},
+          "dir":{"type":"string"},
+          "schema_version":{"type":"string"}
+        }
+      }
+    }
+  }
+===== EOF =====

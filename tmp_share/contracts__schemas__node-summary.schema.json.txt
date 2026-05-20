@@ -1,0 +1,3 @@
+===== contracts/schemas/node-summary.schema.json =====
+
+===== EOF =====

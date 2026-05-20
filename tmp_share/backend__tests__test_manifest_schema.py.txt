@@ -1,0 +1,4 @@
+===== backend/tests/test_manifest_schema.py =====
+def test_placeholder():
+    assert True
+===== EOF =====

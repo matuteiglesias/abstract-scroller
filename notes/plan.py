@@ -1,0 +1,212 @@
+abstract-scrollerYou’re right to step back and think in artifacts instead of “one-more-notebook-sprint.” Building a lasting research-mapping system is mostly about **small, well-defined, reusable components** and clear data interfaces — not a single heroic script. Below I give a concise, practical blueprint: the **minimal useful artifacts**, why each matters, exact I/O you should implement, how they chain together, safety/robustness guardrails, and a pragmatic first thing to build that gives you immediate researcher-superpowers without an all-nighter.
+
+I’ll be blunt where choices are traps and push you toward a small, composable toolset you’ll actually maintain.
+
+# What “valuable artifacts” look like (high level)
+
+Each artifact is a small program (or notebook) with:
+
+* one clear input format,
+* one clear output format (CSV/Parquet/JSONL),
+* a tiny CLI and/or function API,
+* a test or smoke-run,
+* short README snippet describing expected runtime and limits.
+
+These artifacts stack into a pipeline so you can replace parts later without breaking everything.
+
+# Recommended minimal artifact set (priority order)
+
+1. **Metadata fetcher (seed + expansion)** — *foundation*.
+2. **Normalizer / canonicalizer** — cleans, canonicalizes authors, DOIs, years, and outputs normalized table.
+3. **Network builder** — creates citation, co-citation, bibliographic-coupling, and co-authorship edges as tidy tables.
+4. **Sparsifier & backbone extractor** — applies disparity filter / percentile cutoff and exports pruned edges + nodes.
+5. **Community discovery & summary** — runs Leiden/Leiden, extracts cluster cards (top works, authors, keywords) and one-paragraph summaries.
+6. **Semantic topic extractor** — embeddings → UMAP → clustering → cluster labels + exemplars.
+7. **Explorer UI** — small interactive viewer (pyvis / streamlit) showing colored graph and cluster cards.
+8. **Digest generator / brief publisher** — auto-creates weekly PDF/HTML brief with “new hits + top clusters + recommended contacts.”
+9. **Monitoring & scheduler** — simple cron / GitHub Action that runs fetch → process → brief and pushes results to disk or a small site.
+
+# Why this order
+
+Start with fetch + normalize: all downstream work depends on clean, repeatable metadata. The UI and fancy visualizations are useful but throwaway if upstream is messy. Build the minimum backbone early so you can iterate on UX without redoing plumbing.
+
+# Exact I/O, file formats, and CLI examples
+
+Make everything reproducible: prefer CSV/Parquet for tables, JSONL for raw records, and graph edges as CSV (source,target,weight,type).
+
+1. **Metadata fetcher**
+
+* Purpose: pull OpenAlex / CrossRef / publisher metadata and store raw records (JSONL).
+* Input: a small YAML config with queries / DOI list / seed list.
+* Output: `data/raw/<runstamp>_works.jsonl` (one OpenAlex record per line).
+* CLI example:
+
+  ```
+  scripts/fetch_openalex.py --config seeds.yml --out data/raw/seed_openalex_2025-11-02.jsonl
+  ```
+* Minimal config `seeds.yml`:
+
+  ```yaml
+  seeds:
+    - doi: 10.1016/j.inteco.2021.05.005
+    - query: "concepts.search:location quotient"
+  openalex_base: "https://api.openalex.org"
+  per_page: 200
+  max_results: 500
+  ```
+* Guardrails: cache results in `/data/cache`, respect rate limit (sleep), retry 429s.
+
+2. **Normalizer / canonicalizer**
+
+* Purpose: turn raw JSON into a tidy table with canonical author names, ORCID if present, DOI, title, year, venue, abstract, cited_by_count, references (list of DOIs/OpenAlex IDs).
+* Input: `data/raw/...jsonl`
+* Output: `data/normalized/works.parquet` and `data/normalized/authors.parquet`
+* Schema (minimal):
+  `works.parquet` columns: `openalex_id, doi, title, year, venue, abstract, cited_by_count, references (JSON list), concepts (JSON list)`
+* CLI:
+
+  ```
+  scripts/normalize.py --in data/raw/seed_openalex_....jsonl --out data/normalized/works.parquet
+  ```
+* Tests: assert `year` is int, `doi` normalized (lowercase), no duplicate `openalex_id`s.
+
+3. **Network builder**
+
+* Builds edges from `references` and authorship lists.
+* Outputs: `graphs/citation_edges.csv` (`source_openalex_id,target_openalex_id,weight`), `graphs/coauth_edges.csv` (`author_a,author_b,weight`), `graphs/cocite_edges.csv` (`work1,work2,weight`)
+* CLI:
+
+  ```
+  scripts/build_networks.py --works data/normalized/works.parquet --out graphs/
+  ```
+* Notes: compute bibliographic coupling by intersecting references per work; weight = count(shared refs).
+
+4. **Sparsifier / backbone extractor**
+
+* Purpose: remove hairball edges while keeping signal.
+* Input: an edges file.
+* Output: `graphs/skeleton_edges.csv` (sparsified).
+* Methods: Serrano disparity filter (preferred), or percentile keep (top 5–10%).
+* CLI:
+
+  ```
+  scripts/sparsify.py --edges graphs/cocite_edges.csv --method disparity --alpha 0.05 --out graphs/skeleton_edges.csv
+  ```
+
+5. **Community discovery & summary**
+
+* Input: `graphs/skeleton_edges.csv` + `data/normalized/works.parquet`
+* Output: `clusters/communities.parquet` (work_id,community_id), and `clusters/cards/cluster_<id>.md` (top-5 works, authors, keywords, 1-paragraph summary)
+* CLI:
+
+  ```
+  scripts/cluster_and_summarize.py --edges graphs/skeleton_edges.csv --works data/normalized/works.parquet --out clusters/
+  ```
+
+6. **Semantic topic extractor**
+
+* Input: `works.parquet` abstracts
+* Output: `topics/topics.parquet` with `topic_id,top_terms,exemplar_ids`
+* Tooling: SPECTER or SciBERT embeddings (precompute and cache), UMAP, HDBSCAN/BERTopic.
+* CLI:
+
+  ```
+  scripts/topics.py --works data/normalized/works.parquet --out topics/
+  ```
+
+7. **Explorer UI**
+
+* Minimal: Streamlit app reading `works.parquet`, `skeleton_edges.csv`, `clusters/`.
+* Functions: interactive force graph, cluster card panel, clickable paper details, search box.
+* Run:
+
+  ```
+  streamlit run ui/app.py -- --data data/normalized --graphs graphs/ --clusters clusters/
+  ```
+* Keep it offline-first (reads local files), not reliant on server.
+
+8. **Digest generator**
+
+* Input: `clusters/` + `data/normalized/works.parquet` + watcher hits
+* Output: weekly `briefs/brief_YYYYMMDD.html` (3 cards: emerging clusters, new high-score papers, recommended contacts)
+* CLI:
+
+  ```
+  scripts/digest.py --since 7d --out briefs/brief_20251102.html
+  ```
+
+# Minimal metadata normalization schema (copyable)
+
+Use this as the canonical single-table format so everything downstream reads the same shape.
+
+```json
+{
+  "openalex_id": "W1234567890",
+  "doi": "10.1016/j.inteco.2021.05.005",
+  "title": "Measuring size distortions of location quotients",
+  "year": 2021,
+  "venue": "International Economics",
+  "abstract": "....",
+  "authors": [{"name":"Matias Iglesias", "orcid":"0000-0000-0000-0000", "affiliation":"UBA"}],
+  "cited_by_count": 10,
+  "references": ["W2345", "W3456", "10.1000/abc"],
+  "concepts": ["regional science","location quotient"]
+}
+```
+
+# Tests & reproducibility (non-negotiable)
+
+* Unit tests for each script (smoke test on 20 records).
+* End-to-end pipeline test: fetch 50 seeds → normalize → build small network → cluster → summaries.
+* Store run metadata: `runs/<timestamp>/manifest.json` listing inputs, parameters, and timing. This makes results auditable and lets you backtrack when a run diverges.
+
+# UX & how you’ll actually use the “lantern”
+
+Design the outputs you’ll actually read:
+
+* **Cluster cards** (1 page per cluster): read these before diving into papers. They tell you “why this cluster exists” and whether it’s worth deep reading.
+* **Backbone authors table**: who to follow / whose feeds to monitor.
+* **Shortest paths to seed**: when you discover a new paper, ask “how does it connect to the backbone?” — shortest-path visualization helps explain influence quickly.
+* **Weekly digest email**: 5 bullets — 1 emerging cluster, 3 new notable papers, 2 suggested people to email. That’s your lantern for the week.
+
+# Safety, ethics, and polite outreach policy
+
+* Only public contact info. Don’t attempt bulk email scraping.
+* If you automate outreach, require manual approval step for each email. Keep volume low.
+* Respect publisher copyright: share preprints or one-pagers, not paywalled PDFs.
+
+# Implementation cost & priorities (avoid the sprint)
+
+You don’t need to build all artifacts at once. Prioritize:
+
+MVP (one evening + a focused, repeatable script):
+
+1. **Fetcher + Normalizer** — *first priority*. Proven payoff: you’ll have clean data to ask real questions.
+2. **Network builder + simple Leiden cluster** — *second priority*. Gives immediate map and cluster cards you can read.
+3. **Static cluster cards generator** — *third priority*. Readable outputs, no interactive UI required yet.
+
+Add the interactive UI and digests later. Resist the temptation to build a flashy interface before the data plumbing is solid.
+
+# Example minimal roadmap you can follow (concrete, no all-nighters)
+
+* Day 0 (1–2 hours): write `seeds.yml` (150–200 seeds across ~20 subfields).
+* Day 1 (3–5 hours): implement `fetch_openalex.py` and run one cached fetch (50–200 works) and save JSONL. Smoke test.
+* Day 2 (3–5 hours): implement `normalize.py`, produce `works.parquet`. Validate schema.
+* Day 3 (4–8 hours): `build_networks.py` + run Leiden → export `clusters/` + generate 10 cluster cards (markdown). Read and tweak seeds.
+* Week 2: iterate, add topics, and produce the first digest.
+
+This is doable without burning a whole night. Each step is small and yields a tangible artifact you can inspect.
+
+# Small governance hints so it stays useful
+
+* Keep raw data immutable: never edit `data/raw/*`; always re-run normalization to produce new normalized outputs for reproducibility.
+* Use Parquet for normalized tables (faster, typed), CSV for small exports.
+* Keep a `runs/` manifest and use simple semver for scripts (v0.1, v0.2) so you can reproduce older outputs.
+* Document a preferred workflow in `README.md`: how to run a full pipeline and how to do a smoke test.
+
+# Final recommendation — immediate next move (one thing)
+
+Don’t open an IPython sprint. Do one brief technical design task that pays off: **draft `seeds.yml` with ~150 seeds stratified across ~15 subfields** (use the subfield list we discussed earlier). That list is your seed-map and forces you to decide what “landmarks” matter. Once you have that YAML you can run a tiny fetch + normalize and immediately see a small map — and you’ll learn what additional seeds to add. If you want, I’ll draft that 150-seed template for you (subfields + seed suggestions per subfield) right now as a YAML skeleton you can copy/paste.
+
+Which would you like: I can produce the 150-seed YAML skeleton now (fast, concrete), or I can draft the exact minimal `fetch_openalex.py` script interface and `normalize.py` schema so you or an assistant can implement them quickly.
+

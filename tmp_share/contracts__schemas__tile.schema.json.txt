@@ -1,0 +1,31 @@
+===== contracts/schemas/tile.schema.json =====
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title":"Tile",
+    "type":"object",
+    "required":["snapshot_id","tile_id","start_index","docs"],
+    "properties":{
+      "snapshot_id":{"type":"string"},
+      "tile_id":{"type":"integer","minimum":0},
+      "start_index":{"type":"integer","minimum":0},
+      "docs":{
+        "type":"array",
+        "items":{
+          "type":"object",
+          "required":["order_index","doc_id","title","abstract_300","year","venue","tags","badges"],
+          "properties":{
+            "order_index":{"type":"integer","minimum":0},
+            "doc_id":{"type":"string"},
+            "title":{"type":"string"},
+            "abstract_300":{"type":"string"},
+            "year":{"type":"integer"},
+            "venue":{"type":"string"},
+            "tags":{"type":"array","items":{"type":"string"}},
+            "badges":{"type":"array","items":{"type":"string"}},
+            "node_hint":{"type":"string"}
+          }
+        }
+      }
+    }
+  }
+===== EOF =====
