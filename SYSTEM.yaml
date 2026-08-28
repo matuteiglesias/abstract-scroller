@@ -1,0 +1,47 @@
+# This file declares the repository boundary and its place in the GitHub estate.
+schema_version: 1
+id: kb.review.snapshot
+repository:
+  id: repo.abstract-scroller
+  github: matuteiglesias/abstract-scroller
+domain: knowledge
+system: kb.review
+role: review-snapshot-surface
+lifecycle: active
+authority:
+  status: proposed
+  owns:
+  - immutable review snapshot generation
+  - snapshot manifest, order and tile representation
+  - lightweight reader surface over prepared review records
+  does_not_own:
+  - paper ingestion or parsing
+  - shared interoperability contract authority
+  - source evidence selection or promotion policy
+  - context routing or MCP transport
+interfaces:
+  consumes:
+  - contract:kb.review-node@1
+  - format:review-csv
+  produces:
+  - artifact:kb.review-snapshot@1
+upstream:
+- repo.kb-contracts
+- repo.paper-kb
+downstream: []
+canonical_commands:
+- make snapshot
+- make validate
+- make serve
+generated_paths:
+- data/snapshots/
+verification:
+  status: metadata-only
+  last_verified: '2026-08-28'
+  command: make validate
+  unknowns:
+  - W2 reconstructed this boundary from README.md, Makefile and the 2026-05-20 review_node ingest change without executing the commands
+  - the current snapshot contract is producer-local until W3 proves whether a shared contract is required
+maintenance:
+  cadence: quarterly
+  next_review: '2026-11-01'
