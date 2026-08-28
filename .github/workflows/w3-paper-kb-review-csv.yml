@@ -37,8 +37,8 @@ jobs:
       - name: Install Abstract Scroller and test runner
         run: python -m pip install -e . pytest
 
-      - name: Run existing consumer snapshot tests
-        run: python -m pytest -q
+      - name: Run consumer snapshot tests only
+        run: python -m pytest -q tests
 
       - name: Prove real Paper KB export through Abstract Scroller snapshot
         run: |
