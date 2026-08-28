@@ -1,0 +1,47 @@
+name: W3 paper-kb review CSV interface proof
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/w3-paper-kb-review-csv-proof
+
+permissions:
+  contents: read
+
+jobs:
+  prove-paper-kb-review-csv-edge:
+    runs-on: ubuntu-latest
+    env:
+      PAPER_KB_COMMIT: d65a6f9bd6fff3e2f25768785753856cd9adcb6a
+      PAPER_KB_ROOT: ${{ github.workspace }}/upstream/paper-kb
+
+    steps:
+      - name: Checkout Abstract Scroller consumer
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Paper KB producer
+        uses: actions/checkout@v4
+        with:
+          repository: matuteiglesias/paper-kb
+          ref: ${{ env.PAPER_KB_COMMIT }}
+          path: upstream/paper-kb
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Abstract Scroller
+        run: python -m pip install -e .
+
+      - name: Run existing consumer snapshot tests
+        run: python -m pytest -q
+
+      - name: Prove real Paper KB export through Abstract Scroller snapshot
+        run: |
+          python scripts/verify_paper_kb_review_csv_edge.py \
+            --producer-root "$PAPER_KB_ROOT" \
+            --expected-producer-commit "$PAPER_KB_COMMIT"
