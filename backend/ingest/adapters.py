@@ -5,11 +5,38 @@ import jsonschema
 import pandas as pd
 
 
+def _series_or_default(
+    df: pd.DataFrame,
+    column: str,
+    default,
+) -> pd.Series:
+    if column in df.columns:
+        return df[column]
+    return pd.Series(default, index=df.index)
+
+
 def _normalize_common_types(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["year"] = pd.to_numeric(df.get("year", 0), errors="coerce").fillna(0).astype(int)
-    df["has_code"] = pd.to_numeric(df.get("has_code", 0), errors="coerce").fillna(0).astype(int)
-    df["date"] = pd.to_datetime(df.get("date"), errors="coerce")
+    df["year"] = (
+        pd.to_numeric(
+            _series_or_default(df, "year", 0),
+            errors="coerce",
+        )
+        .fillna(0)
+        .astype(int)
+    )
+    df["has_code"] = (
+        pd.to_numeric(
+            _series_or_default(df, "has_code", 0),
+            errors="coerce",
+        )
+        .fillna(0)
+        .astype(int)
+    )
+    df["date"] = pd.to_datetime(
+        _series_or_default(df, "date", None),
+        errors="coerce",
+    )
     return df
 
 
