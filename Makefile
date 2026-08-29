@@ -1,9 +1,14 @@
 PY?=python3
+INPUT?=data/paper.review-record.v1.jsonl
+OUT?=data/snapshots/paper-review
 
-.PHONY: snapshot validate serve clean
+.PHONY: snapshot snapshot-review-records validate serve clean
 
 snapshot:
 	$(PY) -m backend.jobs.mvp_snapshot --input data/sample.csv --out data/snapshots/v2025-08-15
+
+snapshot-review-records:
+	$(PY) -m backend.jobs.mvp_snapshot --input $(INPUT) --format paper_review_record_jsonl --out $(OUT)
 
 validate:
 	$(PY) -m backend.publish.manifest --validate data/snapshots/v2025-08-15

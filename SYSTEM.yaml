@@ -16,11 +16,13 @@ authority:
   - lightweight reader surface over prepared review records
   does_not_own:
   - paper ingestion or parsing
+  - paper-domain review-record contract authority
   - shared interoperability contract authority
   - source evidence selection or promotion policy
   - context routing or MCP transport
 interfaces:
   consumes:
+  - contract:paper.review-record@1
   - contract:kb.review-node@1
   - format:review-csv
   produces:
@@ -31,17 +33,23 @@ upstream:
 downstream: []
 canonical_commands:
 - make snapshot
+- make snapshot-review-records INPUT=<paper.review-record.v1.jsonl> OUT=<snapshot-dir>
 - make validate
 - make serve
 generated_paths:
 - data/snapshots/
 verification:
-  status: metadata-only
+  status: bounded-interface-proofs
   last_verified: '2026-08-28'
-  command: make validate
+  command: make snapshot-review-records INPUT=<paper.review-record.v1.jsonl> OUT=<snapshot-dir>
+  proven:
+  - Paper KB legacy review CSV compiles to an Abstract Scroller snapshot through pinned W3 cross-repo CI
+  expected_on_this_branch:
+  - producer-owned paper.review-record@1 JSONL maps paper_uid to snapshot doc_id without vendoring the producer schema
+  - pinned Paper KB P2 output compiles end-to-end into manifest and Brotli tile assets
   unknowns:
-  - W2 reconstructed this boundary from README.md, Makefile and the 2026-05-20 review_node ingest change without executing the commands
-  - the current snapshot contract is producer-local until W3 proves whether a shared contract is required
+  - review_node_jsonl remains a legacy/local compatibility surface and has not been promoted to shared authority
+  - snapshot bitset/node stubs remain outside this interface proof and should not be interpreted as implemented subsystems
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'

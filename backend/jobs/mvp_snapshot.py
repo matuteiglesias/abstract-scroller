@@ -8,7 +8,11 @@ from backend.publish import ids, manifest, order, tiles, writer
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", required=True)
-    ap.add_argument("--format", default="csv", choices=["csv", "review_node_jsonl"])
+    ap.add_argument(
+        "--format",
+        default="csv",
+        choices=["csv", "review_node_jsonl", "paper_review_record_jsonl"],
+    )
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
