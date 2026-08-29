@@ -1,10 +1,11 @@
-name: W3 paper-kb review CSV interface proof
+name: Compatibility proof - Paper KB legacy review CSV
 
 on:
   pull_request:
   push:
     branches:
       - feat/w3-paper-kb-review-csv-proof
+      - governance/p4-review-interface-precedence
 
 permissions:
   contents: read
@@ -20,7 +21,7 @@ jobs:
       - name: Checkout Abstract Scroller consumer
         uses: actions/checkout@v4
 
-      - name: Checkout pinned Paper KB producer
+      - name: Checkout pinned historical Paper KB producer
         uses: actions/checkout@v4
         with:
           repository: matuteiglesias/paper-kb
@@ -37,7 +38,7 @@ jobs:
       - name: Install Abstract Scroller
         run: python -m pip install -e .
 
-      - name: Prove real Paper KB export through Abstract Scroller snapshot
+      - name: Prove retained legacy CSV compatibility
         run: |
           python scripts/verify_paper_kb_review_csv_edge.py \
             --producer-root "$PAPER_KB_ROOT" \
