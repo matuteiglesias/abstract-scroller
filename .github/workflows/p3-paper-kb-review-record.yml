@@ -1,0 +1,52 @@
+name: P3 Paper KB canonical review-record interface proof
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/p3-paper-review-record-consumer
+
+permissions:
+  contents: read
+
+jobs:
+  prove-paper-review-record-edge:
+    runs-on: ubuntu-latest
+    env:
+      PAPER_KB_COMMIT: 26ee23037b3f009a703f7b62464a548da8223bcb
+      PAPER_KB_ROOT: ${{ github.workspace }}/upstream/paper-kb
+
+    steps:
+      - name: Checkout Abstract Scroller consumer
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Paper KB producer
+        uses: actions/checkout@v4
+        with:
+          repository: matuteiglesias/paper-kb
+          ref: ${{ env.PAPER_KB_COMMIT }}
+          path: upstream/paper-kb
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install bounded consumer dependencies
+        run: python -m pip install 'pandas~=2.2' 'numpy~=1.26' brotli jsonschema
+
+      - name: Prove canonical Paper KB review records through snapshot compilation
+        run: |
+          python scripts/verify_paper_kb_review_record_edge.py \
+            --producer-root "$PAPER_KB_ROOT" \
+            --expected-producer-commit "$PAPER_KB_COMMIT"
+
+      - name: Preserve legacy CSV interface proof
+        run: |
+          python -m backend.jobs.mvp_snapshot \
+            --input data/sample.csv \
+            --format csv \
+            --out /tmp/legacy-csv-snapshot
+          test -s /tmp/legacy-csv-snapshot/manifest.json
+          test -s /tmp/legacy-csv-snapshot/tiles/tile_00000.json.br
