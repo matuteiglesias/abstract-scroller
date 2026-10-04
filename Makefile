@@ -4,7 +4,13 @@ OUT?=data/snapshots/paper-review
 LEGACY_CSV_INPUT?=data/sample.csv
 LEGACY_REVIEW_NODE_INPUT?=data/review_node.jsonl
 
-.PHONY: snapshot-review-records snapshot snapshot-csv-legacy snapshot-review-node-legacy validate serve clean smoke
+.PHONY: snapshot-review-records snapshot snapshot-csv-legacy snapshot-review-node-legacy validate producer-receipt-snapshot serve clean smoke
+
+PROJECTS_ROOT ?=
+
+producer-receipt-snapshot:
+	@test -n "$(PROJECTS_ROOT)" || { echo "PROJECTS_ROOT is required" >&2; exit 2; }
+	python3 "$(PROJECTS_ROOT)/scripts/producer_local_receipt.py" --producer producer.manual.abstract-review-snapshot --cwd "$(CURDIR)" --evidence-manifest "$(OUT)/manifest.json" --evidence-changed "$(OUT)/manifest.json" --enforce-evidence -- make snapshot-review-records INPUT="$(INPUT)" OUT="$(OUT)"
 
 snapshot-review-records:
 	$(PY) -m backend.jobs.mvp_snapshot --input $(INPUT) --format paper_review_record_jsonl --out $(OUT)
